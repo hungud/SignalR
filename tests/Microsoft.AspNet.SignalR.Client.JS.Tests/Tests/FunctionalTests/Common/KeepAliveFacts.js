@@ -63,6 +63,8 @@ QUnit.asyncTimeoutTest("WebSockets transport attempts to check keep alive.", tes
     };
 });
 
+QUnit.module("Transports Common - Keep Alive Facts");
+
 QUnit.asyncTimeoutTest("Check if alive can recover from faulty connections.", testUtilities.defaultTestTimeout, function (end, assert, testName) {
     var connection = testUtilities.createHubConnection(testName),
         savedUpdateKeepAlive = $.signalR.transports._logic.updateKeepAlive,
