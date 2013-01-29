@@ -79,3 +79,51 @@ QUnit.asyncTimeoutTest("Connection StateChanged event is called for every state"
         connection.stop();
     };
 });
+
+QUnit.asyncTimeoutTest("Manually restarted client maintains consistent state.", testUtilities.defaultTestTimeout, function (end, assert, testName) {
+    var connection = testUtilities.createHubConnection(testName),
+        demo = connection.createHubProxies().demo,
+        transport = { transport: "foreverFrame" },
+        tryReconnect = function () {
+            connection.transport.lostConnection(connection);
+        };
+
+    // Need to have at least one client function in order to be subscribed to a hub
+    demo.client.foo = function () { };
+
+    connection.start(transport).done(function () {
+        setTimeout(function () {
+            // Synchronously stop
+            connection.stop(false);
+
+            assert.ok(true, "Connection manually stopped, now restarting.");
+
+            assert.equal($.signalR.connectionState.disconnected, connection.state, "SignalR state is disconnected prior to (re)start.");
+
+            connection.start(transport).done(function () {
+                assert.equal($.signalR.connectionState.connected, connection.state, "SignalR state is connected once start callback is called.");
+
+                // Wire up the state changed (while connected) to detect if we shift into reconnecting
+                // In a later test we'll determine if reconnected gets called
+                connection.stateChanged(function () {
+                    if (connection.state == $.signalR.connectionState.reconnecting) {
+                        assert.ok(true, "SignalR state is reconnecting.");
+                        end();
+                    }
+                });
+
+                tryReconnect();
+            }).fail(function (reason) {
+                assert.ok(false, "Failed to initiate SignalR connection");
+                end();
+            });
+
+            assert.equal($.signalR.connectionState.connecting, connection.state, "SignalR state is connecting prior to start deferred resolve.");
+        }, 250);
+    });
+
+    // Cleanup
+    return function () {
+        connection.stop();
+    };
+});
